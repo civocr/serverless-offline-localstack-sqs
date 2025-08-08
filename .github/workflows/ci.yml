@@ -35,7 +35,7 @@ jobs:
       run: npm test -- --coverage
       
     - name: Upload coverage to Codecov
-      uses: codecov/codecov-action@v3
+      uses: codecov/codecov-action@v4
       with:
         file: ./coverage/lcov.info
         flags: unittests
@@ -69,7 +69,7 @@ jobs:
         test -f dist/index.js
         
     - name: Upload build artifacts
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: build-artifacts
         path: dist/
@@ -109,7 +109,7 @@ jobs:
       run: npm ci
       
     - name: Download build artifacts
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4
       with:
         name: build-artifacts
         path: dist/
@@ -149,7 +149,7 @@ jobs:
       run: npm ci
       
     - name: Download build artifacts
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4
       with:
         name: build-artifacts
         path: dist/
