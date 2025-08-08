@@ -1,12 +1,12 @@
 # Serverless Offline LocalStack SQS
 
-[![CI](https://github.com/Hanger49/serverless-offline-localstack-sqs/workflows/CI/badge.svg)](https://github.com/Hanger49/serverless-offline-localstack-sqs/actions/workflows/ci.yml)
+[![CI](https://github.com/civocr/serverless-offline-localstack-sqs/workflows/CI/badge.svg)](https://github.com/civocr/serverless-offline-localstack-sqs/actions/workflows/ci.yml)
 [![npm version](https://badge.fury.io/js/serverless-offline-localstack-sqs.svg)](https://badge.fury.io/js/serverless-offline-localstack-sqs)
 [![downloads](https://img.shields.io/npm/dm/serverless-offline-localstack-sqs.svg)](https://www.npmjs.com/package/serverless-offline-localstack-sqs)
-[![license](https://img.shields.io/npm/l/serverless-offline-localstack-sqs.svg)](https://github.com/Hanger49/serverless-offline-localstack-sqs/blob/main/LICENSE)
-[![codecov](https://codecov.io/gh/Hanger49/serverless-offline-localstack-sqs/branch/main/graph/badge.svg)](https://codecov.io/gh/Hanger49/serverless-offline-localstack-sqs)
+[![license](https://img.shields.io/npm/l/serverless-offline-localstack-sqs.svg)](https://github.com/civocr/serverless-offline-localstack-sqs/blob/main/LICENSE)
+[![codecov](https://codecov.io/gh/civocr/serverless-offline-localstack-sqs/branch/main/graph/badge.svg)](https://codecov.io/gh/civocr/serverless-offline-localstack-sqs)
 [![node](https://img.shields.io/node/v/serverless-offline-localstack-sqs.svg)](https://www.npmjs.com/package/serverless-offline-localstack-sqs)
-[![CodeQL](https://github.com/Hanger49/serverless-offline-localstack-sqs/actions/workflows/codeql.yml/badge.svg)](https://github.com/Hanger49/serverless-offline-localstack-sqs/actions/workflows/codeql.yml)
+[![CodeQL](https://github.com/civocr/serverless-offline-localstack-sqs/actions/workflows/codeql.yml/badge.svg)](https://github.com/civocr/serverless-offline-localstack-sqs/actions/workflows/codeql.yml)
 
 A Serverless Framework plugin that enables local SQS integration with LocalStack for development and testing. This plugin automatically polls SQS queues and invokes your Lambda handlers locally, providing a seamless offline development experience.
 
@@ -287,7 +287,7 @@ npm run lint:fix
 
 ```bash
 # Clone the repository
-git clone https://github.com/Hanger49/serverless-offline-localstack-sqs.git
+git clone https://github.com/civocr/serverless-offline-localstack-sqs.git
 cd serverless-offline-localstack-sqs
 
 # Install dependencies
