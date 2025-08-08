@@ -1,0 +1,165 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    
+    strategy:
+      matrix:
+        node-version: [18.x, 20.x, 22.x]
+        
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Use Node.js ${{ matrix.node-version }}
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ matrix.node-version }}
+        cache: 'npm'
+        
+    - name: Install dependencies
+      run: npm ci
+      
+    - name: Run linter
+      run: npm run lint
+      
+    - name: Run tests
+      run: npm test -- --coverage
+      
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v3
+      with:
+        file: ./coverage/lcov.info
+        flags: unittests
+        name: codecov-umbrella
+        fail_ci_if_error: false
+
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    needs: test
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Use Node.js 20.x
+      uses: actions/setup-node@v4
+      with:
+        node-version: 20.x
+        cache: 'npm'
+        
+    - name: Install dependencies
+      run: npm ci
+      
+    - name: Build TypeScript
+      run: npm run build
+      
+    - name: Check build artifacts
+      run: |
+        ls -la dist/
+        test -f dist/index.js
+        
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: build-artifacts
+        path: dist/
+        
+  test-integration:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    needs: build
+    
+    services:
+      localstack:
+        image: localstack/localstack:latest
+        ports:
+          - 4566:4566
+        env:
+          SERVICES: sqs
+          DEBUG: 1
+          LAMBDA_EXECUTOR: docker
+          DOCKER_HOST: unix:///var/run/docker.sock
+        options: >-
+          --health-cmd="curl -f http://localhost:4566/_localstack/health || exit 1"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=3
+          
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Use Node.js 20.x
+      uses: actions/setup-node@v4
+      with:
+        node-version: 20.x
+        cache: 'npm'
+        
+    - name: Install dependencies
+      run: npm ci
+      
+    - name: Download build artifacts
+      uses: actions/download-artifact@v3
+      with:
+        name: build-artifacts
+        path: dist/
+        
+    - name: Wait for LocalStack
+      run: |
+        timeout 60 bash -c 'until curl -f http://localhost:4566/_localstack/health; do sleep 2; done'
+        
+    - name: Test LocalStack connectivity
+      run: |
+        curl -s http://localhost:4566/_localstack/health | grep '"sqs": "running"'
+        
+    - name: Run integration tests
+      run: |
+        cd test-app
+        npm ci
+        timeout 30 npm run dev &
+        sleep 10
+        curl -f http://localhost:3005/webhook -d '{"test":true}' -H "Content-Type: application/json" || true
+        
+  test-examples:
+    name: Test Examples
+    runs-on: ubuntu-latest
+    needs: build
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Use Node.js 20.x
+      uses: actions/setup-node@v4
+      with:
+        node-version: 20.x
+        cache: 'npm'
+        
+    - name: Install dependencies
+      run: npm ci
+      
+    - name: Download build artifacts
+      uses: actions/download-artifact@v3
+      with:
+        name: build-artifacts
+        path: dist/
+        
+    - name: Test examples installation
+      run: |
+        cd examples
+        npm ci
+        
+    - name: Test test-app installation
+      run: |
+        cd test-app
+        npm ci

@@ -1,0 +1,39 @@
+service: test-webhook-app
+frameworkVersion: '3'
+
+plugins:
+  - serverless-offline
+  - serverless-offline-localstack-sqs
+
+custom:
+  stage: ${opt:stage, 'local'}
+  serverless-offline:
+    httpPort: 3005
+  serverless-offline-localstack-sqs:
+    enabled: true
+    autoCreate: true
+    endpoint: http://localhost:4566
+    debug: true
+    queues:
+      - queueName: webhook-events-local
+        handler: handlers/processor.handler
+        batchSize: 1
+
+provider:
+  name: aws
+  runtime: nodejs20.x
+  stage: ${self:custom.stage}
+  region: us-east-1
+  environment:
+    STAGE: ${self:custom.stage}
+    AWS_ENDPOINT: http://localhost:4566
+
+functions:
+  receiver:
+    handler: handlers/receiver.handler
+    events:
+      - httpApi:
+          path: /webhook
+          method: post
+  processor:
+    handler: handlers/processor.handler

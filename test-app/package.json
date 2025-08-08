@@ -1,0 +1,16 @@
+{
+  "name": "test-webhook-app",
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "serverless offline --stage local"
+  },
+  "dependencies": {
+    "uuid": "^9.0.0"
+  },
+  "devDependencies": {
+    "@aws-sdk/client-sqs": "^3.665.0",
+    "serverless": "^3.39.0",
+    "serverless-offline": "^13.8.0",
+    "serverless-offline-localstack-sqs": "file:../"
+  }
+}

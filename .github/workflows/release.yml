@@ -1,0 +1,210 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_type:
+        description: 'Release type'
+        required: true
+        default: 'patch'
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+          - prerelease
+          
+  push:
+    branches:
+      - main
+    paths:
+      - 'src/**'
+      - 'package.json'
+      - 'package-lock.json'
+
+jobs:
+  release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    
+    permissions:
+      contents: write
+      id-token: write
+      
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      should_publish: ${{ steps.check.outputs.should_publish }}
+      
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        token: ${{ secrets.GITHUB_TOKEN }}
+        
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: 20.x
+        cache: 'npm'
+        registry-url: 'https://registry.npmjs.org'
+        
+    - name: Install dependencies
+      run: npm ci
+      
+    - name: Run tests
+      run: npm test
+      
+    - name: Build
+      run: npm run build
+      
+    - name: Configure Git
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        
+    - name: Check if release needed
+      id: check
+      run: |
+        # Check if this is a manual workflow dispatch or if there are changes since last release
+        if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+          echo "should_publish=true" >> $GITHUB_OUTPUT
+        else
+          # Check if there are unreleased changes
+          LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
+          CHANGES=$(git log ${LAST_TAG}..HEAD --oneline --pretty=format:"%s" | wc -l)
+          if [[ $CHANGES -gt 0 ]]; then
+            echo "should_publish=true" >> $GITHUB_OUTPUT
+          else
+            echo "should_publish=false" >> $GITHUB_OUTPUT
+          fi
+        fi
+        
+    - name: Determine version bump
+      id: version_type
+      if: steps.check.outputs.should_publish == 'true'
+      run: |
+        if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+          echo "type=${{ github.event.inputs.release_type }}" >> $GITHUB_OUTPUT
+        else
+          # Auto-determine based on commit messages
+          LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
+          COMMITS=$(git log ${LAST_TAG}..HEAD --oneline --pretty=format:"%s")
+          
+          if echo "$COMMITS" | grep -i "BREAKING\|major" > /dev/null; then
+            echo "type=major" >> $GITHUB_OUTPUT
+          elif echo "$COMMITS" | grep -i "feat\|feature\|minor" > /dev/null; then
+            echo "type=minor" >> $GITHUB_OUTPUT
+          else
+            echo "type=patch" >> $GITHUB_OUTPUT
+          fi
+        fi
+        
+    - name: Bump version
+      id: version
+      if: steps.check.outputs.should_publish == 'true'
+      run: |
+        NEW_VERSION=$(npm version ${{ steps.version_type.outputs.type }} --no-git-tag-version)
+        echo "version=$NEW_VERSION" >> $GITHUB_OUTPUT
+        echo "New version: $NEW_VERSION"
+        
+    - name: Update package-lock.json
+      if: steps.check.outputs.should_publish == 'true'
+      run: npm install --package-lock-only
+      
+    - name: Commit version bump
+      if: steps.check.outputs.should_publish == 'true'
+      run: |
+        git add package.json package-lock.json
+        git commit -m "chore: bump version to ${{ steps.version.outputs.version }}"
+        git tag ${{ steps.version.outputs.version }}
+        
+    - name: Generate changelog
+      id: changelog
+      if: steps.check.outputs.should_publish == 'true'
+      run: |
+        LAST_TAG=$(git describe --tags --abbrev=0 HEAD~1 2>/dev/null || echo "")
+        if [[ -z "$LAST_TAG" ]]; then
+          CHANGELOG=$(git log --oneline --pretty=format:"- %s" | head -20)
+        else
+          CHANGELOG=$(git log ${LAST_TAG}..HEAD~1 --oneline --pretty=format:"- %s")
+        fi
+        
+        # Create changelog for release notes
+        cat << EOF > RELEASE_NOTES.md
+        ## Changes
+        
+        $CHANGELOG
+        
+        ## Installation
+        
+        \`\`\`bash
+        npm install serverless-offline-localstack-sqs
+        \`\`\`
+        
+        ## Usage
+        
+        Add to your \`serverless.yml\`:
+        
+        \`\`\`yaml
+        plugins:
+          - serverless-offline
+          - serverless-offline-localstack-sqs
+        \`\`\`
+        
+        See the [README](https://github.com/${{ github.repository }}#readme) for full documentation.
+        EOF
+        
+    - name: Push changes
+      if: steps.check.outputs.should_publish == 'true'
+      run: |
+        git push origin main
+        git push origin ${{ steps.version.outputs.version }}
+        
+    - name: Create GitHub Release
+      if: steps.check.outputs.should_publish == 'true'
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ steps.version.outputs.version }}
+        release_name: Release ${{ steps.version.outputs.version }}
+        body_path: RELEASE_NOTES.md
+        draft: false
+        prerelease: ${{ contains(steps.version.outputs.version, 'pre') }}
+
+  publish:
+    name: Publish to NPM
+    needs: release
+    runs-on: ubuntu-latest
+    if: needs.release.outputs.should_publish == 'true'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        ref: ${{ needs.release.outputs.version }}
+        
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: 20.x
+        cache: 'npm'
+        registry-url: 'https://registry.npmjs.org'
+        
+    - name: Install dependencies
+      run: npm ci
+      
+    - name: Build
+      run: npm run build
+      
+    - name: Publish to NPM
+      run: npm publish --access public
+      env:
+        NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        
+    - name: Create deployment comment
+      if: success()
+      run: |
+        echo "🚀 Published version ${{ needs.release.outputs.version }} to NPM successfully!"

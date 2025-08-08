@@ -1,0 +1,91 @@
+service: sqs-offline-example
+
+frameworkVersion: '3'
+
+provider:
+  name: aws
+  runtime: nodejs18.x
+  region: us-east-1
+  stage: dev
+
+plugins:
+  - serverless-offline
+  - serverless-offline-localstack-sqs
+
+custom:
+  serverless-offline-localstack-sqs:
+    enabled: true
+    endpoint: http://localhost:4566  # LocalStack endpoint
+    region: ${self:provider.region}
+    accessKeyId: test
+    secretAccessKey: test
+    autoCreate: true
+    pollInterval: 1000
+    maxConcurrentPolls: 3
+    visibilityTimeout: 30
+    waitTimeSeconds: 20
+    maxReceiveCount: 3
+    deadLetterQueueSuffix: '-dlq'
+    debug: true
+    skipCacheInvalidation: false
+    lambdaTimeout: 30000
+    queues:
+      # Manual queue configuration (optional - can also be auto-detected from function events)
+      - queueName: manual-queue
+        handler: handlers/manual.handler
+        enabled: true
+        batchSize: 1
+        dlq:
+          enabled: true
+          maxReceiveCount: 3
+
+functions:
+  # Function with SQS trigger - will be auto-detected
+  processOrder:
+    handler: handlers/order.process
+    timeout: 30
+    events:
+      - sqs:
+          arn: arn:aws:sqs:us-east-1:000000000000:order-queue
+          batchSize: 10
+          
+  # Another function with SQS trigger
+  sendNotification:
+    handler: handlers/notification.send
+    timeout: 15
+    events:
+      - sqs:
+          queueName: notification-queue
+          batchSize: 1
+
+  # Function without SQS events (will be ignored by the plugin)
+  httpEndpoint:
+    handler: handlers/api.handler
+    events:
+      - http:
+          path: /api/test
+          method: get
+
+resources:
+  Resources:
+    # CloudFormation SQS queue definition - will be auto-created
+    OrderQueue:
+      Type: AWS::SQS::Queue
+      Properties:
+        QueueName: order-queue
+        VisibilityTimeout: 30
+        ReceiveMessageWaitTimeSeconds: 20
+        RedrivePolicy:
+          deadLetterTargetArn: !GetAtt OrderDeadLetterQueue.Arn
+          maxReceiveCount: 3
+    
+    OrderDeadLetterQueue:
+      Type: AWS::SQS::Queue
+      Properties:
+        QueueName: order-queue-dlq
+        
+    NotificationQueue:
+      Type: AWS::SQS::Queue
+      Properties:
+        QueueName: notification-queue
+        VisibilityTimeout: 15

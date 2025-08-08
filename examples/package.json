@@ -1,0 +1,16 @@
+{
+  "name": "serverless-offline-localstack-sqs-example",
+  "version": "1.0.0",
+  "description": "Example usage of serverless-offline-localstack-sqs plugin",
+  "scripts": {
+    "start": "serverless offline start",
+    "deploy": "serverless deploy",
+    "sqs:start": "serverless sqs-offline start",
+    "localstack:start": "docker run --rm -p 4566:4566 localstack/localstack"
+  },
+  "devDependencies": {
+    "serverless": "^3.0.0",
+    "serverless-offline": "^13.0.0",
+    "serverless-offline-localstack-sqs": "file:../"
+  }
+}
