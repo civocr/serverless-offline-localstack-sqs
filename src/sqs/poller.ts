@@ -120,7 +120,6 @@ export class MessagePoller {
     queueConfig: QueueConfig,
     queueInfo: QueueInfo
   ): Promise<void> {
-    const { queueName, handler } = queueConfig;
     const maxConcurrency = queueConfig.maxConcurrentPolls || this.config.maxConcurrentPolls;
 
     // Process messages in batches to respect concurrency limits
