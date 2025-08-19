@@ -34,13 +34,25 @@ jobs:
     - name: Run tests
       run: npm test -- --coverage
       
+    - name: Display coverage summary
+      run: |
+        echo "Coverage Summary:"
+        if [ -f coverage/lcov-report/index.html ]; then
+          echo "Coverage report generated at coverage/lcov-report/index.html"
+        fi
+        if [ -f coverage/coverage-summary.json ]; then
+          cat coverage/coverage-summary.json | head -20
+        fi
+      
     - name: Upload coverage to Codecov
+      if: ${{ secrets.CODECOV_TOKEN != '' }}
       uses: codecov/codecov-action@v4
       with:
         file: ./coverage/lcov.info
         flags: unittests
         name: codecov-umbrella
         fail_ci_if_error: false
+        token: ${{ secrets.CODECOV_TOKEN }}
 
   build:
     name: Build
