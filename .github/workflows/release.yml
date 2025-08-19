@@ -72,12 +72,18 @@ jobs:
           echo "should_publish=true" >> $GITHUB_OUTPUT
         else
           # Check if there are unreleased changes
-          LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
-          CHANGES=$(git log ${LAST_TAG}..HEAD --oneline --pretty=format:"%s" | wc -l)
-          if [[ $CHANGES -gt 0 ]]; then
+          LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null)
+          if [[ -z "$LAST_TAG" ]]; then
+            # No tags exist, this is the first release
             echo "should_publish=true" >> $GITHUB_OUTPUT
           else
-            echo "should_publish=false" >> $GITHUB_OUTPUT
+            # Check for changes since last tag
+            CHANGES=$(git log ${LAST_TAG}..HEAD --oneline --pretty=format:"%s" | wc -l)
+            if [[ $CHANGES -gt 0 ]]; then
+              echo "should_publish=true" >> $GITHUB_OUTPUT
+            else
+              echo "should_publish=false" >> $GITHUB_OUTPUT
+            fi
           fi
         fi
         
@@ -89,8 +95,14 @@ jobs:
           echo "type=${{ github.event.inputs.release_type }}" >> $GITHUB_OUTPUT
         else
           # Auto-determine based on commit messages
-          LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
-          COMMITS=$(git log ${LAST_TAG}..HEAD --oneline --pretty=format:"%s")
+          LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null)
+          if [[ -z "$LAST_TAG" ]]; then
+            # No tags exist, get all commits
+            COMMITS=$(git log --oneline --pretty=format:"%s")
+          else
+            # Get commits since last tag
+            COMMITS=$(git log ${LAST_TAG}..HEAD --oneline --pretty=format:"%s")
+          fi
           
           if echo "$COMMITS" | grep -i "BREAKING\|major" > /dev/null; then
             echo "type=major" >> $GITHUB_OUTPUT
