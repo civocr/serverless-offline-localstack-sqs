@@ -62,12 +62,13 @@ export class QueueManager {
   }
 
   private async createQueueFromConfig(queueConfig: QueueConfig): Promise<void> {
-    const { queueName, dlq } = queueConfig;
+    const { queueName: rawQueueName, dlq } = queueConfig;
+    const queueName = this.sanitizeQueueName(rawQueueName);
 
     // Create DLQ first if enabled
     let dlqUrl: string | undefined;
     if (dlq?.enabled) {
-      const dlqName = dlq.queueName || `${queueName}${this.config.deadLetterQueueSuffix}`;
+      const dlqName = this.sanitizeQueueName(dlq.queueName || `${queueName}${this.config.deadLetterQueueSuffix}`);
       const dlqInfo = await this.sqsClient.createQueue(dlqName);
       dlqUrl = dlqInfo.queueUrl;
       this.createdQueues.set(dlqName, dlqInfo);
@@ -115,8 +116,9 @@ export class QueueManager {
     };
 
     if (dlqUrl && queueConfig.dlq?.enabled) {
+      const dlqName = this.sanitizeQueueName(queueConfig.dlq.queueName || `${queueConfig.queueName}${this.config.deadLetterQueueSuffix}`);
       attributes.RedrivePolicy = JSON.stringify({
-        deadLetterTargetArn: this.buildQueueArn(queueConfig.dlq.queueName || `${queueConfig.queueName}${this.config.deadLetterQueueSuffix}`),
+        deadLetterTargetArn: this.buildQueueArn(dlqName),
         maxReceiveCount: queueConfig.dlq.maxReceiveCount || this.config.maxReceiveCount,
       });
     }
@@ -150,7 +152,7 @@ export class QueueManager {
   private parseQueueResource(logicalId: string, resource: any): QueueResource | null {
     try {
       const properties = resource.Properties || {};
-      const queueName = properties.QueueName || logicalId;
+      const queueName = this.sanitizeQueueName(properties.QueueName || logicalId);
       const attributes: Record<string, string> = {};
 
       // Map CloudFormation properties to SQS attributes
@@ -173,9 +175,9 @@ export class QueueManager {
         attributes.RedrivePolicy = JSON.stringify(properties.RedrivePolicy);
         
         // Try to extract DLQ name from the policy
-        if (properties.RedrivePolicy.deadLetterTargetArn) {
+        if (properties.RedrivePolicy.deadLetterTargetArn && typeof properties.RedrivePolicy.deadLetterTargetArn === 'string') {
           const arnParts = properties.RedrivePolicy.deadLetterTargetArn.split(':');
-          dlqName = arnParts[arnParts.length - 1];
+          dlqName = this.sanitizeQueueName(arnParts[arnParts.length - 1]);
         }
       }
 
@@ -194,6 +196,27 @@ export class QueueManager {
   private buildQueueArn(queueName: string): string {
     // LocalStack uses a simplified ARN format
     return `arn:aws:sqs:${this.config.region}:000000000000:${queueName}`;
+  }
+
+  private sanitizeQueueName(queueName: string): string {
+    // SQS queue names can only contain alphanumeric characters, hyphens, and underscores
+    // Replace dots and other invalid characters with hyphens
+    let sanitized = queueName.replace(/[^a-zA-Z0-9_-]/g, '-');
+    
+    // Ensure length is between 1 and 80 characters
+    if (sanitized.length > 80) {
+      sanitized = sanitized.substring(0, 80);
+    }
+    
+    // Remove trailing hyphens that might have been added
+    sanitized = sanitized.replace(/-+$/, '');
+    
+    // Ensure we don't have an empty string
+    if (sanitized.length === 0) {
+      sanitized = 'queue';
+    }
+    
+    return sanitized;
   }
 
   getCreatedQueues(): Map<string, QueueInfo> {
