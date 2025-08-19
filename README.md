@@ -317,6 +317,23 @@ npm install
 npm run dev
 ```
 
+### Git Hooks
+
+This project uses Husky for Git hooks to maintain code quality:
+
+- **Pre-commit hook**: Runs `lint-staged` on staged files
+  - Automatically fixes ESLint issues where possible
+  - Prevents commits with linting errors
+  - Ensures consistent code style
+
+```bash
+# The pre-commit hook will run automatically, but you can also run manually:
+npx lint-staged
+
+# To bypass the hook (not recommended):
+git commit --no-verify -m "message"
+```
+
 ### CI/CD Pipeline
 
 This project uses GitHub Actions for continuous integration and deployment:
