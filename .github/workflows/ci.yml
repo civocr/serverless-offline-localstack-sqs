@@ -45,7 +45,6 @@ jobs:
         fi
       
     - name: Upload coverage to Codecov
-      if: ${{ secrets.CODECOV_TOKEN != '' }}
       uses: codecov/codecov-action@v4
       with:
         file: ./coverage/lcov.info
@@ -53,6 +52,7 @@ jobs:
         name: codecov-umbrella
         fail_ci_if_error: false
         token: ${{ secrets.CODECOV_TOKEN }}
+      continue-on-error: true
 
   build:
     name: Build
