@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [ main, develop ]
+    branches: [ main, dev ]
   pull_request:
     branches: [ main ]
 
@@ -34,6 +34,16 @@ jobs:
     - name: Run tests
       run: npm test -- --coverage
       
+    - name: Display coverage summary
+      run: |
+        echo "Coverage Summary:"
+        if [ -f coverage/lcov-report/index.html ]; then
+          echo "Coverage report generated at coverage/lcov-report/index.html"
+        fi
+        if [ -f coverage/coverage-summary.json ]; then
+          cat coverage/coverage-summary.json | head -20
+        fi
+      
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v4
       with:
@@ -41,6 +51,8 @@ jobs:
         flags: unittests
         name: codecov-umbrella
         fail_ci_if_error: false
+        token: ${{ secrets.CODECOV_TOKEN }}
+      continue-on-error: true
 
   build:
     name: Build
@@ -120,7 +132,7 @@ jobs:
         
     - name: Test LocalStack connectivity
       run: |
-        curl -s http://localhost:4566/_localstack/health | grep '"sqs": "running"'
+        curl -s http://localhost:4566/_localstack/health | grep -E '"sqs": "(running|available)"'
         
     - name: Run integration tests
       run: |
