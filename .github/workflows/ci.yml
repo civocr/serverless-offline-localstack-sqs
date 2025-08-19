@@ -120,7 +120,7 @@ jobs:
         
     - name: Test LocalStack connectivity
       run: |
-        curl -s http://localhost:4566/_localstack/health | grep '"sqs": "running"'
+        curl -s http://localhost:4566/_localstack/health | grep -E '"sqs": "(running|available)"'
         
     - name: Run integration tests
       run: |
