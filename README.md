@@ -392,4 +392,4 @@ MIT
 - LocalStack integration with Docker auto-detection
 - Automatic queue creation from CloudFormation and function events
 - Message polling with retry and DLQ support
-- TypeScript implementation with full type definitions
+- TypeScript implementation with full type definitions# Test commit
